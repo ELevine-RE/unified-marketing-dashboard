@@ -251,19 +251,19 @@ class RealEstateChatbot:
         if HAS_GOOGLE_ADS:
             try:
                 ads_manager = SimpleGoogleAdsManager()
-                campaigns = ads_manager.get_campaign_data()
+                metrics_data = ads_manager.get_campaign_data()
                 
-                # Find matching campaign
-                for campaign in campaigns:
-                    if campaign_name.lower() in campaign.get('name', '').lower():
-                        return {
-                            "campaign": campaign.get('name', campaign_name),
-                            "clicks": f"{campaign.get('clicks', 0):,}",
-                            "impressions": f"{campaign.get('impressions', 0):,}",
-                            "ctr": f"{campaign.get('ctr', 0):.2f}%",
-                            "cost": f"${campaign.get('cost', 0):,.2f}",
-                            "conversions": campaign.get('conversions', 0)
-                        }
+                # Return overall metrics since we don't have individual campaign data
+                total_cost = metrics_data.get('total_cost', 0) / 1000000 if metrics_data.get('total_cost', 0) > 0 else 0
+                
+                return {
+                    "campaign": f"Overall Performance ({campaign_name})",
+                    "clicks": f"{metrics_data.get('total_clicks', 0):,}",
+                    "impressions": f"{metrics_data.get('total_impressions', 0):,}",
+                    "ctr": f"{metrics_data.get('avg_ctr', 0) * 100:.2f}%",
+                    "cost": f"${total_cost:,.2f}",
+                    "conversions": metrics_data.get('total_conversions', 0)
+                }
             except Exception as e:
                 logger.warning(f"Failed to fetch real campaign data: {e}")
         
@@ -348,43 +348,21 @@ class UnifiedMarketingDashboard:
         """Fetch real Google Ads data"""
         try:
             ads_manager = SimpleGoogleAdsManager()
-            campaigns = ads_manager.get_campaign_data()
+            metrics_data = ads_manager.get_campaign_data()
             
-            # Process campaign data
-            campaign_list = []
-            total_clicks = 0
-            total_impressions = 0
-            total_cost = 0
-            total_conversions = 0
-            
-            for campaign in campaigns:
-                campaign_data = {
-                    'name': campaign.get('name', 'Unknown Campaign'),
-                    'clicks': campaign.get('clicks', 0),
-                    'impressions': campaign.get('impressions', 0),
-                    'ctr': campaign.get('ctr', 0),
-                    'cost': campaign.get('cost', 0),
-                    'conversions': campaign.get('conversions', 0)
-                }
-                campaign_list.append(campaign_data)
-                
-                total_clicks += campaign_data['clicks']
-                total_impressions += campaign_data['impressions']
-                total_cost += campaign_data['cost']
-                total_conversions += campaign_data['conversions']
-            
-            avg_ctr = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0
-            avg_cpc = (total_cost / total_clicks) if total_clicks > 0 else 0
+            # The get_campaign_data() method returns metrics directly
+            # Convert cost from micros to dollars
+            total_cost = metrics_data.get('total_cost', 0) / 1000000 if metrics_data.get('total_cost', 0) > 0 else 0
             
             return {
-                'campaigns': campaign_list,
+                'campaigns': [],  # No individual campaign data available
                 'metrics': {
-                    'total_clicks': total_clicks,
-                    'total_impressions': total_impressions,
+                    'total_clicks': metrics_data.get('total_clicks', 0),
+                    'total_impressions': metrics_data.get('total_impressions', 0),
                     'total_cost': total_cost,
-                    'total_conversions': total_conversions,
-                    'avg_ctr': avg_ctr,
-                    'avg_cpc': avg_cpc
+                    'total_conversions': metrics_data.get('total_conversions', 0),
+                    'avg_ctr': metrics_data.get('avg_ctr', 0) * 100,  # Convert to percentage
+                    'avg_cpc': metrics_data.get('avg_cpc', 0) / 1000000  # Convert from micros to dollars
                 }
             }
         except Exception as e:
