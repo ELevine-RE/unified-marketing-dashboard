@@ -302,20 +302,17 @@ class RealEstateChatbot:
         
         try:
             import google.generativeai as genai
-            history_for_api = []
-            for message in chat_history:
-                role = 'user' if message['role'] == 'user' else 'model'
-                history_for_api.append({'role': role, 'parts': [message['parts']]})
-
+            
+            # For now, let's use a simple approach without chat history
+            # The Gemini API has changed and the history parameter is not supported
             response = self.model.generate_content(
                 user_message,
-                generation_config=genai.types.GenerationConfig(candidate_count=1),
-                history=history_for_api[:-1]
+                generation_config=genai.types.GenerationConfig(candidate_count=1)
             )
             
             response_part = response.candidates[0].content.parts[0]
 
-            if response_part.function_call:
+            if hasattr(response_part, 'function_call') and response_part.function_call:
                 return {"type": "function_call", "data": response_part.function_call}
             else:
                 return {"type": "text", "data": response.text}
