@@ -193,12 +193,35 @@ class RealEstateChatbot:
         """Get campaign performance data"""
         if "non_existent" in campaign_name.lower():
             return f"Error: Campaign '{campaign_name}' not found."
+        
+        # Try to get real data if Google Ads API is available
+        if HAS_GOOGLE_ADS:
+            try:
+                ads_manager = SimpleGoogleAdsManager()
+                campaigns = ads_manager.get_campaigns()
+                
+                # Find matching campaign
+                for campaign in campaigns:
+                    if campaign_name.lower() in campaign.get('name', '').lower():
+                        return {
+                            "campaign": campaign.get('name', campaign_name),
+                            "clicks": f"{campaign.get('clicks', 0):,}",
+                            "impressions": f"{campaign.get('impressions', 0):,}",
+                            "ctr": f"{campaign.get('ctr', 0):.2f}%",
+                            "cost": f"${campaign.get('cost', 0):,.2f}",
+                            "conversions": campaign.get('conversions', 0)
+                        }
+            except Exception as e:
+                logger.warning(f"Failed to fetch real campaign data: {e}")
+        
+        # Fallback to mock data
         return {
             "campaign": campaign_name,
             "clicks": "1,204",
             "impressions": "34,567",
             "ctr": "3.48%",
-            "cost": "$2,450.78"
+            "cost": "$2,450.78",
+            "conversions": 12
         }
 
     def pause_campaign(self, campaign_name: str):
@@ -301,10 +324,10 @@ class UnifiedMarketingDashboard:
     """Unified marketing dashboard combining all components"""
     
     def __init__(self):
-        # Always initialize with mock data for now, will be replaced with real data if APIs are available
-        self.ads_data = get_mock_ads_data()
-        self.analytics_data = get_mock_analytics_data()
-        self.sierra_data = get_mock_sierra_data()
+        # Initialize with real data if APIs are available, otherwise use mock data
+        self.ads_data = self.get_real_ads_data() if HAS_GOOGLE_ADS else get_mock_ads_data()
+        self.analytics_data = self.get_real_analytics_data() if HAS_GOOGLE_ANALYTICS else get_mock_analytics_data()
+        self.sierra_data = self.get_real_sierra_data() if HAS_SIERRA else get_mock_sierra_data()
         
         # Initialize chatbot
         if "chatbot" not in st.session_state:
@@ -314,10 +337,114 @@ class UnifiedMarketingDashboard:
         if "pending_action" not in st.session_state:
             st.session_state.pending_action = None
 
+    def get_real_ads_data(self):
+        """Fetch real Google Ads data"""
+        try:
+            ads_manager = SimpleGoogleAdsManager()
+            campaigns = ads_manager.get_campaigns()
+            
+            # Process campaign data
+            campaign_list = []
+            total_clicks = 0
+            total_impressions = 0
+            total_cost = 0
+            total_conversions = 0
+            
+            for campaign in campaigns:
+                campaign_data = {
+                    'name': campaign.get('name', 'Unknown Campaign'),
+                    'clicks': campaign.get('clicks', 0),
+                    'impressions': campaign.get('impressions', 0),
+                    'ctr': campaign.get('ctr', 0),
+                    'cost': campaign.get('cost', 0),
+                    'conversions': campaign.get('conversions', 0)
+                }
+                campaign_list.append(campaign_data)
+                
+                total_clicks += campaign_data['clicks']
+                total_impressions += campaign_data['impressions']
+                total_cost += campaign_data['cost']
+                total_conversions += campaign_data['conversions']
+            
+            avg_ctr = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0
+            avg_cpc = (total_cost / total_clicks) if total_clicks > 0 else 0
+            
+            return {
+                'campaigns': campaign_list,
+                'metrics': {
+                    'total_clicks': total_clicks,
+                    'total_impressions': total_impressions,
+                    'total_cost': total_cost,
+                    'total_conversions': total_conversions,
+                    'avg_ctr': avg_ctr,
+                    'avg_cpc': avg_cpc
+                }
+            }
+        except Exception as e:
+            logger.warning(f"Failed to fetch Google Ads data: {e}")
+            return get_mock_ads_data()
+
+    def get_real_analytics_data(self):
+        """Fetch real Google Analytics data"""
+        try:
+            analytics_manager = SimpleGoogleAnalyticsManager()
+            data = analytics_manager.get_basic_metrics()
+            
+            return {
+                'sessions': data.get('sessions', 0),
+                'users': data.get('users', 0),
+                'pageviews': data.get('pageviews', 0),
+                'bounce_rate': data.get('bounce_rate', 0),
+                'avg_session_duration': data.get('avg_session_duration', '0:00'),
+                'conversions': data.get('conversions', 0),
+                'conversion_rate': data.get('conversion_rate', 0)
+            }
+        except Exception as e:
+            logger.warning(f"Failed to fetch Google Analytics data: {e}")
+            return get_mock_analytics_data()
+
+    def get_real_sierra_data(self):
+        """Fetch real Sierra Interactive data"""
+        try:
+            sierra_manager = SimpleSierraManager()
+            data = sierra_manager.get_lead_summary()
+            
+            return {
+                'total_leads': data.get('total_leads', 0),
+                'qualified_leads': data.get('qualified_leads', 0),
+                'conversion_rate': data.get('conversion_rate', 0),
+                'avg_response_time': data.get('avg_response_time', 'N/A'),
+                'top_sources': data.get('top_sources', [])
+            }
+        except Exception as e:
+            logger.warning(f"Failed to fetch Sierra data: {e}")
+            return get_mock_sierra_data()
+
     def render_main_dashboard(self):
         """Render the main analytics dashboard"""
         st.title("📊 Marketing Performance Dashboard")
         st.markdown("Real-time insights into your Google Ads, Analytics, and CRM performance")
+        
+        # Data source indicators
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            if HAS_GOOGLE_ADS:
+                st.success("✅ Google Ads API")
+            else:
+                st.info("📊 Mock Ads Data")
+        with col2:
+            if HAS_GOOGLE_ANALYTICS:
+                st.success("✅ Google Analytics")
+            else:
+                st.info("📊 Mock Analytics Data")
+        with col3:
+            if HAS_SIERRA:
+                st.success("✅ Sierra CRM")
+            else:
+                st.info("📊 Mock CRM Data")
+        with col4:
+            if st.button("🔄 Refresh Data"):
+                st.rerun()
         
         # Key Metrics Row
         col1, col2, col3, col4 = st.columns(4)
