@@ -214,15 +214,8 @@ class RealEstateChatbot:
             except Exception as e:
                 logger.warning(f"Failed to fetch real campaign data: {e}")
         
-        # Fallback to mock data
-        return {
-            "campaign": campaign_name,
-            "clicks": "1,204",
-            "impressions": "34,567",
-            "ctr": "3.48%",
-            "cost": "$2,450.78",
-            "conversions": 12
-        }
+        # No fallback - return error message
+        return f"Error: Unable to fetch data for campaign '{campaign_name}'. Please check API connection."
 
     def pause_campaign(self, campaign_name: str):
         """Pause a campaign"""
@@ -277,46 +270,7 @@ class RealEstateChatbot:
         else:
             return f"Error: Unknown function '{func_name}'."
 
-# --- Mock Data Functions ---
-
-def get_mock_ads_data():
-    """Generate mock Google Ads data"""
-    return {
-        'campaigns': [
-            {'name': 'L.R - PMax - General', 'clicks': 1204, 'impressions': 34567, 'ctr': 3.48, 'cost': 2450.78, 'conversions': 12},
-            {'name': 'L.R - Search - Local', 'clicks': 856, 'impressions': 12345, 'ctr': 6.93, 'cost': 1890.45, 'conversions': 8},
-        ],
-        'metrics': {
-            'total_clicks': 2060,
-            'total_impressions': 46912,
-            'total_cost': 4341.23,
-            'total_conversions': 20,
-            'avg_ctr': 4.39,
-            'avg_cpc': 2.11
-        }
-    }
-
-def get_mock_analytics_data():
-    """Generate mock Google Analytics data"""
-    return {
-        'sessions': 15420,
-        'users': 12350,
-        'pageviews': 45680,
-        'bounce_rate': 42.3,
-        'avg_session_duration': '2:34',
-        'conversions': 45,
-        'conversion_rate': 0.29
-    }
-
-def get_mock_sierra_data():
-    """Generate mock Sierra Interactive data"""
-    return {
-        'total_leads': 156,
-        'qualified_leads': 89,
-        'conversion_rate': 57.1,
-        'avg_response_time': '2.3 hours',
-        'top_sources': ['Google Ads', 'Organic Search', 'Direct']
-    }
+# --- No Mock Data - Real APIs Only ---
 
 # --- Main Dashboard Class ---
 
@@ -324,10 +278,10 @@ class UnifiedMarketingDashboard:
     """Unified marketing dashboard combining all components"""
     
     def __init__(self):
-        # Initialize with real data if APIs are available, otherwise use mock data
-        self.ads_data = self.get_real_ads_data() if HAS_GOOGLE_ADS else get_mock_ads_data()
-        self.analytics_data = self.get_real_analytics_data() if HAS_GOOGLE_ANALYTICS else get_mock_analytics_data()
-        self.sierra_data = self.get_real_sierra_data() if HAS_SIERRA else get_mock_sierra_data()
+        # Only initialize with real data - no mock data
+        self.ads_data = self.get_real_ads_data() if HAS_GOOGLE_ADS else None
+        self.analytics_data = self.get_real_analytics_data() if HAS_GOOGLE_ANALYTICS else None
+        self.sierra_data = self.get_real_sierra_data() if HAS_SIERRA else None
         
         # Initialize chatbot
         if "chatbot" not in st.session_state:
@@ -381,8 +335,8 @@ class UnifiedMarketingDashboard:
                 }
             }
         except Exception as e:
-            logger.warning(f"Failed to fetch Google Ads data: {e}")
-            return get_mock_ads_data()
+            logger.error(f"Failed to fetch Google Ads data: {e}")
+            return None
 
     def get_real_analytics_data(self):
         """Fetch real Google Analytics data"""
@@ -400,8 +354,8 @@ class UnifiedMarketingDashboard:
                 'conversion_rate': data.get('conversion_rate', 0)
             }
         except Exception as e:
-            logger.warning(f"Failed to fetch Google Analytics data: {e}")
-            return get_mock_analytics_data()
+            logger.error(f"Failed to fetch Google Analytics data: {e}")
+            return None
 
     def get_real_sierra_data(self):
         """Fetch real Sierra Interactive data"""
@@ -417,8 +371,8 @@ class UnifiedMarketingDashboard:
                 'top_sources': data.get('top_sources', [])
             }
         except Exception as e:
-            logger.warning(f"Failed to fetch Sierra data: {e}")
-            return get_mock_sierra_data()
+            logger.error(f"Failed to fetch Sierra data: {e}")
+            return None
 
     def render_main_dashboard(self):
         """Render the main analytics dashboard"""
@@ -428,20 +382,20 @@ class UnifiedMarketingDashboard:
         # Data source indicators
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            if HAS_GOOGLE_ADS:
+            if self.ads_data is not None:
                 st.success("✅ Google Ads API")
             else:
-                st.info("📊 Mock Ads Data")
+                st.error("❌ Google Ads API - No Data")
         with col2:
-            if HAS_GOOGLE_ANALYTICS:
+            if self.analytics_data is not None:
                 st.success("✅ Google Analytics")
             else:
-                st.info("📊 Mock Analytics Data")
+                st.error("❌ Google Analytics - No Data")
         with col3:
-            if HAS_SIERRA:
+            if self.sierra_data is not None:
                 st.success("✅ Sierra CRM")
             else:
-                st.info("📊 Mock CRM Data")
+                st.error("❌ Sierra CRM - No Data")
         with col4:
             if st.button("🔄 Refresh Data"):
                 st.rerun()
@@ -450,57 +404,80 @@ class UnifiedMarketingDashboard:
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.metric(
-                "Total Clicks",
-                f"{self.ads_data['metrics']['total_clicks']:,}",
-                delta="+12%"
-            )
+            if self.ads_data is not None:
+                st.metric(
+                    "Total Clicks",
+                    f"{self.ads_data['metrics']['total_clicks']:,}",
+                    delta="+12%"
+                )
+            else:
+                st.metric("Total Clicks", "N/A")
         
         with col2:
-            st.metric(
-                "Total Cost",
-                f"${self.ads_data['metrics']['total_cost']:,.2f}",
-                delta="+8%"
-            )
+            if self.ads_data is not None:
+                st.metric(
+                    "Total Cost",
+                    f"${self.ads_data['metrics']['total_cost']:,.2f}",
+                    delta="+8%"
+                )
+            else:
+                st.metric("Total Cost", "N/A")
         
         with col3:
-            st.metric(
-                "Conversions",
-                f"{self.ads_data['metrics']['total_conversions']}",
-                delta="+25%"
-            )
+            if self.ads_data is not None:
+                st.metric(
+                    "Conversions",
+                    f"{self.ads_data['metrics']['total_conversions']}",
+                    delta="+25%"
+                )
+            else:
+                st.metric("Conversions", "N/A")
         
         with col4:
-            st.metric(
-                "Avg CPC",
-                f"${self.ads_data['metrics']['avg_cpc']:.2f}",
-                delta="-5%"
-            )
+            if self.ads_data is not None:
+                st.metric(
+                    "Avg CPC",
+                    f"${self.ads_data['metrics']['avg_cpc']:.2f}",
+                    delta="-5%"
+                )
+            else:
+                st.metric("Avg CPC", "N/A")
         
         # Campaign Performance Chart
         st.subheader("Campaign Performance")
-        campaigns_df = pd.DataFrame(self.ads_data['campaigns'])
-        
-        fig = px.bar(
-            campaigns_df,
-            x='name',
-            y=['clicks', 'conversions'],
-            title="Clicks vs Conversions by Campaign",
-            barmode='group'
-        )
-        st.plotly_chart(fig, use_container_width=True)
+        if self.ads_data is not None and self.ads_data['campaigns']:
+            campaigns_df = pd.DataFrame(self.ads_data['campaigns'])
+            
+            fig = px.bar(
+                campaigns_df,
+                x='name',
+                y=['clicks', 'conversions'],
+                title="Clicks vs Conversions by Campaign",
+                barmode='group'
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.error("❌ No campaign data available")
         
         # Analytics Overview
         st.subheader("Website Analytics")
         col1, col2 = st.columns(2)
         
         with col1:
-            st.metric("Sessions", f"{self.analytics_data['sessions']:,}")
-            st.metric("Users", f"{self.analytics_data['users']:,}")
+            if self.analytics_data is not None:
+                st.metric("Sessions", f"{self.analytics_data['sessions']:,}")
+                st.metric("Users", f"{self.analytics_data['users']:,}")
+            else:
+                st.metric("Sessions", "N/A")
+                st.metric("Users", "N/A")
         
         with col2:
-            st.metric("Page Views", f"{self.analytics_data['pageviews']:,}")
-            st.metric("Bounce Rate", f"{self.analytics_data['bounce_rate']}%")
+            if self.analytics_data is not None:
+                st.metric("Page Views", f"{self.analytics_data['pageviews']:,}")
+                st.metric("Bounce Rate", f"{self.analytics_data['bounce_rate']}%")
+            else:
+                st.metric("Page Views", "N/A")
+                st.metric("Bounce Rate", "N/A")
 
     def render_chatbot(self):
         """Render the AI chatbot interface"""
@@ -645,9 +622,20 @@ def main():
     
     # Quick stats in sidebar
     st.sidebar.subheader("Quick Stats")
-    st.sidebar.metric("Total Leads", "156", "+12")
-    st.sidebar.metric("Campaign Cost", "$4,341", "+$89")
-    st.sidebar.metric("Conversion Rate", "12.8%", "+2.1%")
+    if dashboard.sierra_data is not None:
+        st.sidebar.metric("Total Leads", f"{dashboard.sierra_data.get('total_leads', 'N/A')}")
+    else:
+        st.sidebar.metric("Total Leads", "N/A")
+    
+    if dashboard.ads_data is not None:
+        st.sidebar.metric("Campaign Cost", f"${dashboard.ads_data['metrics']['total_cost']:,.2f}")
+    else:
+        st.sidebar.metric("Campaign Cost", "N/A")
+    
+    if dashboard.analytics_data is not None:
+        st.sidebar.metric("Conversion Rate", f"{dashboard.analytics_data['conversion_rate']:.1%}")
+    else:
+        st.sidebar.metric("Conversion Rate", "N/A")
     
     # Route to appropriate page
     if page == "📊 Main Dashboard":
