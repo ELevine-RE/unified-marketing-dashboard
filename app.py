@@ -227,7 +227,15 @@ class RealEstateChatbot:
     def __init__(self):
         try:
             import google.generativeai as genai
-            genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
+            
+            # Check if API key is available
+            api_key = os.environ.get("GOOGLE_API_KEY")
+            if not api_key:
+                logger.warning("⚠️ GOOGLE_API_KEY environment variable not set")
+                self.available = False
+                return
+                
+            genai.configure(api_key=api_key)
             self.model = genai.GenerativeModel(
                 'gemini-pro',
                 tools=[get_performance_func, pause_campaign_func, enable_campaign_func, change_budget_func]
@@ -239,7 +247,12 @@ class RealEstateChatbot:
                 "change_budget": self.change_budget,
             }
             self.available = True
-        except (AttributeError, KeyError, ImportError):
+            logger.info("✅ AI Chatbot initialized successfully")
+        except ImportError as e:
+            logger.error(f"❌ Failed to import google.generativeai: {e}")
+            self.available = False
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize AI Chatbot: {e}")
             self.available = False
 
     def get_campaign_performance(self, campaign_name: str):
@@ -515,7 +528,40 @@ class UnifiedMarketingDashboard:
         chatbot = st.session_state.chatbot
         
         if not chatbot.available:
-            return  # Don't show anything if chatbot is unavailable
+            # Show a helpful message about setting up the API key
+            col1, col2, col3 = st.columns([1, 1, 1])
+            with col3:
+                if st.button("🤖 AI Assistant", help="Click to set up AI assistant"):
+                    st.session_state.show_api_setup = True
+            
+            # Show API setup instructions
+            if st.session_state.get("show_api_setup", False):
+                with st.container():
+                    st.markdown("---")
+                    st.subheader("🤖 AI Assistant Setup")
+                    st.error("⚠️ Google AI API key not configured")
+                    
+                    st.markdown("""
+                    **To enable the AI Assistant, you need to:**
+                    
+                    1. **Get a Gemini API Key**:
+                       - Go to [Google AI Studio](https://aistudio.google.com/)
+                       - Sign in with your Google account
+                       - Click "Get API Key" and create a new key
+                       
+                    2. **Add it to Streamlit Cloud**:
+                       - Go to your [Streamlit Cloud dashboard](https://share.streamlit.io/)
+                       - Select your app
+                       - Go to "Settings" → "Secrets"
+                       - Add: `GOOGLE_API_KEY = "your_api_key_here"`
+                       
+                    3. **Redeploy** your app
+                    """)
+                    
+                    if st.button("❌ Close Setup"):
+                        st.session_state.show_api_setup = False
+                        st.rerun()
+            return
         
         # Initialize chatbot state
         if "chatbot_open" not in st.session_state:
