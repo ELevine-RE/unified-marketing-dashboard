@@ -83,7 +83,7 @@ def test_api_connections():
         try:
             ads_manager = SimpleGoogleAdsManager()
             # Try to make a simple API call
-            campaigns = ads_manager.get_campaigns()
+            campaigns = ads_manager.get_campaign_data()
             status['google_ads'] = True
             logger.info("✅ Google Ads API connection successful")
         except Exception as e:
@@ -95,7 +95,7 @@ def test_api_connections():
         try:
             analytics_manager = SimpleGoogleAnalyticsManager()
             # Try to make a simple API call
-            data = analytics_manager.get_basic_metrics()
+            data = analytics_manager.get_analytics_data()
             status['google_analytics'] = True
             logger.info("✅ Google Analytics API connection successful")
         except Exception as e:
@@ -107,7 +107,7 @@ def test_api_connections():
         try:
             sierra_manager = SimpleSierraManager()
             # Try to make a simple API call
-            data = sierra_manager.get_lead_summary()
+            data = sierra_manager.get_comprehensive_data()
             status['sierra'] = True
             logger.info("✅ Sierra API connection successful")
         except Exception as e:
@@ -251,7 +251,7 @@ class RealEstateChatbot:
         if HAS_GOOGLE_ADS:
             try:
                 ads_manager = SimpleGoogleAdsManager()
-                campaigns = ads_manager.get_campaigns()
+                campaigns = ads_manager.get_campaign_data()
                 
                 # Find matching campaign
                 for campaign in campaigns:
@@ -348,7 +348,7 @@ class UnifiedMarketingDashboard:
         """Fetch real Google Ads data"""
         try:
             ads_manager = SimpleGoogleAdsManager()
-            campaigns = ads_manager.get_campaigns()
+            campaigns = ads_manager.get_campaign_data()
             
             # Process campaign data
             campaign_list = []
@@ -395,7 +395,7 @@ class UnifiedMarketingDashboard:
         """Fetch real Google Analytics data"""
         try:
             analytics_manager = SimpleGoogleAnalyticsManager()
-            data = analytics_manager.get_basic_metrics()
+            data = analytics_manager.get_analytics_data()
             
             return {
                 'sessions': data.get('sessions', 0),
@@ -414,7 +414,7 @@ class UnifiedMarketingDashboard:
         """Fetch real Sierra Interactive data"""
         try:
             sierra_manager = SimpleSierraManager()
-            data = sierra_manager.get_lead_summary()
+            data = sierra_manager.get_comprehensive_data()
             
             return {
                 'total_leads': data.get('total_leads', 0),
