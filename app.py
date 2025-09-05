@@ -301,9 +301,10 @@ class UnifiedMarketingDashboard:
     """Unified marketing dashboard combining all components"""
     
     def __init__(self):
-        self.ads_data = get_mock_ads_data() if not HAS_GOOGLE_ADS else None
-        self.analytics_data = get_mock_analytics_data() if not HAS_GOOGLE_ANALYTICS else None
-        self.sierra_data = get_mock_sierra_data() if not HAS_SIERRA else None
+        # Always initialize with mock data for now, will be replaced with real data if APIs are available
+        self.ads_data = get_mock_ads_data()
+        self.analytics_data = get_mock_analytics_data()
+        self.sierra_data = get_mock_sierra_data()
         
         # Initialize chatbot
         if "chatbot" not in st.session_state:
