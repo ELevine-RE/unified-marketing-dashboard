@@ -510,68 +510,103 @@ class UnifiedMarketingDashboard:
                 st.metric("Page Views", "N/A")
                 st.metric("Bounce Rate", "N/A")
 
-    def render_chatbot(self):
-        """Render the AI chatbot interface"""
-        st.title("🤖 AI Campaign Manager")
-        st.markdown("Chat with your AI assistant to manage Google Ads campaigns")
-        
+    def render_chatbot_overlay(self):
+        """Render the AI chatbot as a floating overlay"""
         chatbot = st.session_state.chatbot
         
         if not chatbot.available:
-            st.error("⚠️ Chatbot unavailable - GOOGLE_API_KEY environment variable not set")
-            st.info("To enable the chatbot, set your Google API key in the environment variables")
-            return
+            return  # Don't show anything if chatbot is unavailable
         
-        # Display chat history
-        for message in st.session_state.chat_history:
-            with st.chat_message(message["role"]):
-                st.markdown(message["parts"])
+        # Initialize chatbot state
+        if "chatbot_open" not in st.session_state:
+            st.session_state.chatbot_open = False
         
-        # User input
-        if prompt := st.chat_input("What would you like to do with your campaigns?"):
-            st.session_state.chat_history.append({"role": "user", "parts": prompt})
-            with st.chat_message("user"):
-                st.markdown(prompt)
-            
-            with st.spinner("Thinking..."):
-                response = chatbot.process_message(prompt, st.session_state.chat_history)
-            
-            if response["type"] == "text":
-                st.session_state.chat_history.append({"role": "model", "parts": response["data"]})
-                with st.chat_message("model"):
-                    st.markdown(response["data"])
-            elif response["type"] == "function_call":
-                st.session_state.pending_action = response["data"]
-                func_name = response["data"].name
-                func_args = {key: value for key, value in response["data"].args.items()}
-                
-                args_str = ", ".join(f"'{v}'" for k, v in func_args.items())
-                recommendation = f"I recommend using the `{func_name}` tool with the following parameters: {args_str}. Shall I proceed?"
-                
-                st.session_state.chat_history.append({"role": "model", "parts": recommendation})
-                with st.chat_message("model"):
-                    st.markdown(recommendation)
+        # Floating chatbot button
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col3:
+            if st.button("🤖 AI Assistant", help="Click to open AI assistant"):
+                st.session_state.chatbot_open = not st.session_state.chatbot_open
         
-        # Pending Action Panel
-        if st.session_state.pending_action:
-            with st.status("🚨 Pending Action", expanded=True):
-                func_call = st.session_state.pending_action
-                func_name = func_call.name
-                func_args = {key: value for key, value in func_call.args.items()}
+        # Chatbot overlay
+        if st.session_state.chatbot_open:
+            # Create a container for the chatbot
+            with st.container():
+                st.markdown("---")
+                st.subheader("🤖 AI Campaign Manager")
+                st.markdown("Ask me anything about your campaigns!")
                 
-                st.write(f"**Tool:** `{func_name}`")
-                st.write("**Parameters:**")
-                st.json(func_args)
+                # Display chat history
+                for message in st.session_state.chat_history:
+                    with st.chat_message(message["role"]):
+                        st.markdown(message["parts"])
                 
-                if st.button("✅ Execute Action"):
-                    with st.spinner("Executing..."):
-                        result = chatbot.execute_function_call(st.session_state.pending_action)
+                # User input
+                if prompt := st.chat_input("What would you like to do with your campaigns?"):
+                    st.session_state.chat_history.append({"role": "user", "parts": prompt})
+                    with st.chat_message("user"):
+                        st.markdown(prompt)
+                    
+                    with st.spinner("Thinking..."):
+                        try:
+                            response = chatbot.process_message(prompt, st.session_state.chat_history)
+                            
+                            if response["type"] == "text":
+                                st.session_state.chat_history.append({"role": "model", "parts": response["data"]})
+                                with st.chat_message("model"):
+                                    st.markdown(response["data"])
+                            elif response["type"] == "function_call":
+                                st.session_state.pending_action = response["data"]
+                                func_name = response["data"].name
+                                func_args = {key: value for key, value in response["data"].args.items()}
+                                
+                                args_str = ", ".join(f"'{v}'" for k, v in func_args.items())
+                                recommendation = f"I recommend using the `{func_name}` tool with the following parameters: {args_str}. Shall I proceed?"
+                                
+                                st.session_state.chat_history.append({"role": "model", "parts": recommendation})
+                                with st.chat_message("model"):
+                                    st.markdown(recommendation)
+                        except Exception as e:
+                            error_msg = f"Sorry, I encountered an error: {str(e)}"
+                            st.session_state.chat_history.append({"role": "model", "parts": error_msg})
+                            with st.chat_message("model"):
+                                st.markdown(error_msg)
+                
+                # Pending Action Panel
+                if st.session_state.pending_action:
+                    with st.status("🚨 Pending Action", expanded=True):
+                        func_call = st.session_state.pending_action
+                        func_name = func_call.name
+                        func_args = {key: value for key, value in func_call.args.items()}
                         
-                        result_message = f"Tool `{func_name}` executed. Result: {result}"
-                        st.session_state.chat_history.append({"role": "model", "parts": result_message})
+                        st.write(f"**Tool:** `{func_name}`")
+                        st.write("**Parameters:**")
+                        st.json(func_args)
                         
-                        st.session_state.pending_action = None
-                        st.rerun()
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("✅ Execute Action"):
+                                with st.spinner("Executing..."):
+                                    try:
+                                        result = chatbot.execute_function_call(st.session_state.pending_action)
+                                        result_message = f"Tool `{func_name}` executed. Result: {result}"
+                                        st.session_state.chat_history.append({"role": "model", "parts": result_message})
+                                        st.session_state.pending_action = None
+                                        st.rerun()
+                                    except Exception as e:
+                                        error_msg = f"Error executing action: {str(e)}"
+                                        st.session_state.chat_history.append({"role": "model", "parts": error_msg})
+                                        st.session_state.pending_action = None
+                                        st.rerun()
+                        
+                        with col2:
+                            if st.button("❌ Cancel"):
+                                st.session_state.pending_action = None
+                                st.rerun()
+                
+                # Close button
+                if st.button("❌ Close Assistant"):
+                    st.session_state.chatbot_open = False
+                    st.rerun()
 
     def render_diagnostics(self):
         """Render system diagnostics"""
@@ -666,7 +701,6 @@ def main():
         "Navigate to:",
         [
             "📊 Main Dashboard",
-            "🤖 AI Campaign Manager", 
             "📅 Marketing Plan & Timeline",
             "📋 Strategic Plan",
             "🎮 Command Center",
@@ -696,8 +730,6 @@ def main():
     # Route to appropriate page
     if page == "📊 Main Dashboard":
         dashboard.render_main_dashboard()
-    elif page == "🤖 AI Campaign Manager":
-        dashboard.render_chatbot()
     elif page == "📅 Marketing Plan & Timeline":
         if HAS_MARKETING_PLAN:
             render_marketing_plan_view()
@@ -718,6 +750,9 @@ def main():
             st.error("Command Center view is not available. Please check the import.")
     elif page == "🔧 Diagnostics":
         dashboard.render_diagnostics()
+    
+    # Chatbot Overlay - Available on all pages
+    dashboard.render_chatbot_overlay()
     
     logger.info("✅ Unified Marketing Dashboard completed successfully")
 
