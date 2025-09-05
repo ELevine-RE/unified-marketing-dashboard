@@ -44,30 +44,83 @@ logger = logging.getLogger(__name__)
 # Add current directory to path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Import integrations with fallback to mock data
+# Import integrations and test actual connections
 try:
     from google_ads_integration import SimpleGoogleAdsManager
-    HAS_GOOGLE_ADS = True
-    logger.info("✅ Successfully imported Google Ads integration")
+    HAS_GOOGLE_ADS_MODULE = True
+    logger.info("✅ Successfully imported Google Ads integration module")
 except ImportError as e:
-    HAS_GOOGLE_ADS = False
-    logger.warning(f"⚠️ Google Ads integration not available, using mock data. Import error: {e}")
+    HAS_GOOGLE_ADS_MODULE = False
+    logger.warning(f"⚠️ Google Ads integration module not available. Import error: {e}")
 
 try:
     from google_analytics_simple import SimpleGoogleAnalyticsManager
-    HAS_GOOGLE_ANALYTICS = True
-    logger.info("✅ Successfully imported Google Analytics integration")
+    HAS_GOOGLE_ANALYTICS_MODULE = True
+    logger.info("✅ Successfully imported Google Analytics integration module")
 except ImportError as e:
-    HAS_GOOGLE_ANALYTICS = False
-    logger.warning(f"⚠️ Google Analytics integration not available, using mock data. Import error: {e}")
+    HAS_GOOGLE_ANALYTICS_MODULE = False
+    logger.warning(f"⚠️ Google Analytics integration module not available. Import error: {e}")
 
 try:
     from sierra_integration import SimpleSierraManager
-    HAS_SIERRA = True
-    logger.info("✅ Successfully imported Sierra Interactive integration")
+    HAS_SIERRA_MODULE = True
+    logger.info("✅ Successfully imported Sierra Interactive integration module")
 except ImportError as e:
-    HAS_SIERRA = False
-    logger.warning(f"⚠️ Sierra Interactive integration not available, using mock data. Import error: {e}")
+    HAS_SIERRA_MODULE = False
+    logger.warning(f"⚠️ Sierra Interactive integration module not available. Import error: {e}")
+
+# Test actual API connections
+def test_api_connections():
+    """Test actual API connections and return status"""
+    status = {
+        'google_ads': False,
+        'google_analytics': False,
+        'sierra': False
+    }
+    
+    # Test Google Ads
+    if HAS_GOOGLE_ADS_MODULE:
+        try:
+            ads_manager = SimpleGoogleAdsManager()
+            # Try to make a simple API call
+            campaigns = ads_manager.get_campaigns()
+            status['google_ads'] = True
+            logger.info("✅ Google Ads API connection successful")
+        except Exception as e:
+            logger.error(f"❌ Google Ads API connection failed: {e}")
+            status['google_ads'] = False
+    
+    # Test Google Analytics
+    if HAS_GOOGLE_ANALYTICS_MODULE:
+        try:
+            analytics_manager = SimpleGoogleAnalyticsManager()
+            # Try to make a simple API call
+            data = analytics_manager.get_basic_metrics()
+            status['google_analytics'] = True
+            logger.info("✅ Google Analytics API connection successful")
+        except Exception as e:
+            logger.error(f"❌ Google Analytics API connection failed: {e}")
+            status['google_analytics'] = False
+    
+    # Test Sierra
+    if HAS_SIERRA_MODULE:
+        try:
+            sierra_manager = SimpleSierraManager()
+            # Try to make a simple API call
+            data = sierra_manager.get_lead_summary()
+            status['sierra'] = True
+            logger.info("✅ Sierra API connection successful")
+        except Exception as e:
+            logger.error(f"❌ Sierra API connection failed: {e}")
+            status['sierra'] = False
+    
+    return status
+
+# Test connections
+API_STATUS = test_api_connections()
+HAS_GOOGLE_ADS = API_STATUS['google_ads']
+HAS_GOOGLE_ANALYTICS = API_STATUS['google_analytics']
+HAS_SIERRA = API_STATUS['sierra']
 
 # Import view modules
 try:
@@ -555,23 +608,48 @@ class UnifiedMarketingDashboard:
         with col1:
             if HAS_GOOGLE_ADS:
                 st.success("✅ Google Ads API")
+                st.caption("Connected and working")
             else:
                 st.error("❌ Google Ads API")
-                st.caption("Using mock data")
+                st.caption("Connection failed - check credentials")
         
         with col2:
             if HAS_GOOGLE_ANALYTICS:
                 st.success("✅ Google Analytics")
+                st.caption("Connected and working")
             else:
                 st.error("❌ Google Analytics")
-                st.caption("Using mock data")
+                st.caption("Connection failed - check credentials")
         
         with col3:
             if HAS_SIERRA:
                 st.success("✅ Sierra Interactive")
+                st.caption("Connected and working")
             else:
                 st.error("❌ Sierra Interactive")
-                st.caption("Using mock data")
+                st.caption("Connection failed - check credentials")
+        
+        # Environment Variables Check
+        st.subheader("Environment Variables")
+        
+        required_vars = [
+            "GOOGLE_ADS_DEVELOPER_TOKEN",
+            "GOOGLE_ADS_CLIENT_ID", 
+            "GOOGLE_ADS_CLIENT_SECRET",
+            "GOOGLE_ADS_REFRESH_TOKEN",
+            "GOOGLE_ADS_LOGIN_CUSTOMER_ID",
+            "GOOGLE_ADS_CUSTOMER_ID",
+            "GOOGLE_ANALYTICS_PROPERTY_ID",
+            "GOOGLE_API_KEY",
+            "SIERRA_API_KEY"
+        ]
+        
+        for var in required_vars:
+            value = os.environ.get(var)
+            if value:
+                st.success(f"✅ {var}")
+            else:
+                st.error(f"❌ {var} - Not set")
         
         # Chatbot Status
         st.subheader("AI Chatbot Status")
